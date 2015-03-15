@@ -2,6 +2,9 @@
 title: "Practical_ML"
 output: html_document
 ---
+##Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
 
 ##Load libraries
 ```{r}
@@ -10,6 +13,8 @@ library("ggplot2")
 library("reshape")
 library("corrplot")
 library("randomForest")
+library("rpart")
+library("rpart.plot")
 ```
 
 ##Importing the train and test dataset into the R
@@ -20,6 +25,7 @@ test<-read.csv("pml-testing.csv")
 ```
 
 ##Removing Missing data Variables:
+Data needs to be cleansed before performing any modelling.
 
 ```{r, echo=FALSE}
 length(names(train))
@@ -28,6 +34,8 @@ length(names(train))
 ```{r, echo=FALSE}
 nrow(train)     
 ```
+
+##Perform training and testing the model.
 
 ```{r, echo=FALSE}
 var<-names(train)[apply(train,2,function(x) table(is.na(x))[1]==19622)]   
@@ -40,10 +48,11 @@ var2<-melt(apply(train2,2,function(x) sum(ifelse(x=="",1,0)))==0)
 select.var<-rownames(var2)[var2$value==TRUE]
 train3<-train2[,select.var]
 test3<-test2[,select.var[-length(select.var)]]
-train4<-train3[,names(train3[-c(1:7,length(train3))])]      # only considering numeric variable from HAR sensor
+train4<-train3[,names(train3[-c(1:7,length(train3))])]      
 test4<-test3[,names(test3[-c(1:7)])]
 ```
- 
+
+##Performing the correlation plot
 ```{r}
 correlations <- cor(train4)                                 # finding correlations 
 corrplot(correlations,order = "hclust",tl.cex = .5)         # plotting correlation matrix of variables
@@ -62,7 +71,22 @@ filtered.test4 <- test4[, -highCorr]
 classe<-train3$classe 
 trainData<-cbind(classe,predictor)
 ```
- 
+
+
+##Use of Decision Tree
+```{r}
+model1 <- rpart(classe ~ ., data=train4, method="class")
+
+# Predicting:
+prediction1 <- predict(model1, test4, type = "class")
+
+# Plot of the Decision Tree
+rpart.plot(model1, main="Classification Tree", extra=102, under=TRUE, faclen=0)
+```
+
+
+#Use of random forest model
+
 ```{r}
 rfModel <- randomForest(classe ~ .,data = trainData,importance = TRUE,ntrees = 10)
 ```
@@ -76,12 +100,14 @@ print(rfModel)
 plot(rfModel) 
 ```
 
-##
+
+
+##Variable Importance Plot
 ```{r}
 varImpPlot(rfModel,cex=.5)    
 ```
 
-##
+##Confusion Matrix
 ```{r}
 confusion<-rfModel$confusion
 sensitivity<-(confusion[2,2]/(confusion[2,2]+confusion[2,1]))*100
